@@ -3,6 +3,9 @@
 
 ## Usage
 ```
+import (
+  . "github.com/zoh/decision-tree/tree"
+)
 tree := DecisionTree{CategoryAttr: "param", ignoredAttribute: []string{}}
 TrainingTree(&tree, trainingSet)
 
