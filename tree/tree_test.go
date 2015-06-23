@@ -61,3 +61,40 @@ func TestMakeTrainingTree(t *testing.T) {
 		"person": "Comic guy", "hairLength": 8, "weight": 290, "age": 38}
 	assert.Equal(t, predict(rootItem, item), "male")
 }
+
+func TestStringifyOfNodeTree(t *testing.T) {
+	node := TreeItem{
+		Attribute:     "weight",
+		PredicateName: ">=",
+		Pivot:         170,
+	}
+	assert.Equal(t, node.String(), "weight >= 170")
+
+	node = TreeItem{
+		Attribute:     "weight",
+		PredicateName: "==",
+		Pivot:         "blabla",
+	}
+	assert.Equal(t, node.String(), "weight == blabla")
+}
+
+//func TestDecisionTree(t *testing.T) {
+//	tree := DecisionTree{
+//		CategoryAttr:     "sex",
+//		IgnoredAttribute: []string{"person"},
+//	}
+//	trainingSet := TrainingSet{
+//		TrainingItem{"person": "Homer", "hairLength": 0, "weight": 250, "age": 36, "sex": "male"},
+//		TrainingItem{"person": "Marge", "hairLength": 10, "weight": 150, "age": 34, "sex": "female"},
+//		TrainingItem{"person": "Bart", "hairLength": 2, "weight": 90, "age": 10, "sex": "male"},
+//		TrainingItem{"person": "Lisa", "hairLength": 6, "weight": 78, "age": 8, "sex": "female"},
+//		TrainingItem{"person": "Maggie", "hairLength": 4, "weight": 20, "age": 1, "sex": "female"},
+//		TrainingItem{"person": "Abe", "hairLength": 1, "weight": 170, "age": 70, "sex": "male"},
+//		TrainingItem{"person": "Selma", "hairLength": 8, "weight": 160, "age": 41, "sex": "female"},
+//		TrainingItem{"person": "Otto", "hairLength": 10, "weight": 180, "age": 38, "sex": "male"},
+//		TrainingItem{"person": "Krusty", "hairLength": 6, "weight": 200, "age": 45, "sex": "male"}}
+//
+//	TrainingTree(&tree, trainingSet)
+//
+//	tree.SaveToHtml()
+//}

@@ -1,14 +1,17 @@
 package tree
 
 import (
+	"fmt"
+	"html/template"
 	"math"
+	"os"
 	"reflect"
 )
 
 type DecisionTree struct {
 	Root             *TreeItem
 	CategoryAttr     string
-	ignoredAttribute []string
+	IgnoredAttribute []string
 }
 
 type TreeItem struct {
@@ -18,9 +21,11 @@ type TreeItem struct {
 
 	MatchedCount   int
 	NoMatchedCount int
-	Attribute      string
-	Predicate      *Predicate
-	Pivot          interface{}
+
+	Attribute     string
+	Predicate     *Predicate
+	PredicateName string
+	Pivot         interface{}
 }
 
 const (
@@ -30,7 +35,7 @@ const (
 /*
   Predicates
 */
-type Predicate func(a, b interface{}) bool
+type Predicate func(interface{}, interface{}) bool
 
 func predicateEq(a, b interface{}) bool {
 	return a == b
@@ -54,7 +59,7 @@ func predicateGte(a, b interface{}) bool {
   Make training tree by training set.
 */
 func TrainingTree(tree *DecisionTree, trainingSet TrainingSet) {
-	tree.Root = makeTrainingTree(trainingSet, tree.CategoryAttr, tree.ignoredAttribute)
+	tree.Root = makeTrainingTree(trainingSet, tree.CategoryAttr, tree.IgnoredAttribute)
 }
 
 /*
@@ -100,12 +105,13 @@ func mostFrequentValue(set TrainingSet, attr string) string {
 }
 
 type Split struct {
-	Match     TrainingSet
-	NoMatch   TrainingSet
-	Gain      float64
-	Attribute string
-	Predicate *Predicate
-	Pivot     interface{}
+	Match         TrainingSet
+	NoMatch       TrainingSet
+	Gain          float64
+	Attribute     string
+	Predicate     *Predicate
+	PredicateName string
+	Pivot         interface{}
 }
 
 /*
@@ -147,10 +153,13 @@ func makeTrainingTree(trainingSet TrainingSet, categoryAttr string, ignoreAttrib
 			}
 
 			var predicate Predicate
+			var predicateName string
 			if reflect.TypeOf(pivot).String() == "int" || reflect.TypeOf(pivot).String() == "float64" {
 				predicate = predicateGte
+				predicateName = ">="
 			} else {
 				predicate = predicateEq
+				predicateName = "=="
 			}
 
 			// split on match/unMatch sets.
@@ -173,6 +182,7 @@ func makeTrainingTree(trainingSet TrainingSet, categoryAttr string, ignoreAttrib
 				bestSplit.Attribute = attr
 				bestSplit.Pivot = pivot
 				bestSplit.Predicate = &predicate
+				bestSplit.PredicateName = predicateName
 			}
 		}
 	}
@@ -193,6 +203,7 @@ func makeTrainingTree(trainingSet TrainingSet, categoryAttr string, ignoreAttrib
 		Attribute:      bestSplit.Attribute,
 		Pivot:          bestSplit.Pivot,
 		Predicate:      bestSplit.Predicate,
+		PredicateName:  bestSplit.PredicateName,
 	}
 }
 
@@ -213,4 +224,191 @@ func predict(tree *TreeItem, item TrainingItem) string {
 			tree = tree.NoMatch
 		}
 	}
+}
+
+type myWriter struct {
+}
+
+func (w myWriter) Write(p []byte) (n int, err error) {
+	fmt.Println(string(p))
+	return 0, nil
+}
+
+const (
+	htmlTemplate = `<html>
+<head>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .tree ul {
+            padding-top: 20px;
+            position: relative;
+
+            transition: all 0.5s;
+            -webkit-transition: all 0.5s;
+            -moz-transition: all 0.5s;
+        }
+
+        .tree li {
+            white-space: nowrap;
+            float: left;
+            text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 20px 5px 0 5px;
+
+            transition: all 0.5s;
+            -webkit-transition: all 0.5s;
+            -moz-transition: all 0.5s;
+        }
+
+        /*We will use ::before and ::after to draw the connectors*/
+
+        .tree li::before, .tree li::after{
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 50%;
+            border-top: 1px solid #ccc;
+            width: 50%;
+            height: 20px;
+        }
+        .tree li::after{
+            right: auto;
+            left: 50%;
+            border-left: 1px solid #ccc;
+        }
+
+        /*We need to remove left-right connectors from elements without
+         any siblings*/
+        .tree li:only-child::after, .tree li:only-child::before {
+            display: none;
+        }
+
+        /*Remove space from the top of single children*/
+        .tree li:only-child{
+            padding-top: 0;
+        }
+
+        /*Remove left connector from first child and
+         right connector from last child*/
+        .tree li:first-child::before, .tree li:last-child::after{
+            border: 0 none;
+        }
+        /*Adding back the vertical connector to the last nodes*/
+        .tree li:last-child::before{
+            border-right: 1px solid #ccc;
+            border-radius: 0 5px 0 0;
+            -webkit-border-radius: 0 5px 0 0;
+            -moz-border-radius: 0 5px 0 0;
+        }
+        .tree li:first-child::after{
+            border-radius: 5px 0 0 0;
+            -webkit-border-radius: 5px 0 0 0;
+            -moz-border-radius: 5px 0 0 0;
+        }
+
+        /*Time to add downward connectors from parents*/
+        .tree ul ul::before{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            border-left: 1px solid #ccc;
+            width: 0;
+            height: 20px;
+        }
+
+        .tree li a{
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            text-decoration: none;
+            color: #666;
+            font-family: arial, verdana, tahoma;
+            font-size: 11px;
+            display: inline-block;
+
+            border-radius: 5px;
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+
+            transition: all 0.5s;
+            -webkit-transition: all 0.5s;
+            -moz-transition: all 0.5s;
+        }
+
+        /*Time for some hover effects*/
+        /*We will apply the hover effect the the lineage of the element also*/
+        .tree li a:hover, .tree li a:hover+ul li a {
+            background: #c8e4f8;
+            color: #000;
+            border: 1px solid #94a0b4;
+        }
+        /*Connector styles on hover*/
+        .tree li a:hover+ul li::after,
+        .tree li a:hover+ul li::before,
+        .tree li a:hover+ul::before,
+        .tree li a:hover+ul ul::before{
+            border-color:  #94a0b4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tree">{{ .tree }}</div>
+
+</body>
+</html>`
+)
+
+func (t DecisionTree) SaveToHtml() {
+	tmpl, err := template.New("name").Parse(htmlTemplate)
+	if err != nil {
+		panic(err)
+	}
+
+	data_res := make(map[string]template.HTML)
+	data_res["tree"] = template.HTML(treeToHtml(t.Root))
+
+	f, err := os.Create("/tmp/tree")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	err = tmpl.Execute(f, data_res)
+}
+
+func treeToHtml(tree *TreeItem) string {
+	// only leafs containing category
+	if tree.Category != "" {
+		return `<ul>
+				<li>
+				<a href="#">
+				<b>` + tree.Category + `</b>
+				</a>
+				</li>
+				</ul>`
+	}
+
+	return `<ul>
+		<li><a href="#">
+			<b>` + tree.String() + ` ?</b>
+			</a>
+		<ul>
+		<li>
+			<a href="#">yes</a>` + treeToHtml(tree.Match) + `
+		</li>
+		<li>
+			<a href="#">no</a>` + treeToHtml(tree.NoMatch) + `
+		</li>
+		</ul>
+		</li></ul>`
+}
+
+func (node TreeItem) String() string {
+	return fmt.Sprintf("%s %s %v", node.Attribute, node.PredicateName, node.Pivot)
 }
