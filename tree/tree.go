@@ -364,16 +364,20 @@ const (
 </html>`
 )
 
-func (t DecisionTree) SaveToHtml() {
+func (t DecisionTree) SaveToHtml(out string) {
 	tmpl, err := template.New("name").Parse(htmlTemplate)
 	if err != nil {
 		panic(err)
 	}
 
+	if out == "" {
+		panic("undefined path file for save treeHtml.")
+	}
+
 	data_res := make(map[string]template.HTML)
 	data_res["tree"] = template.HTML(treeToHtml(t.Root))
 
-	f, err := os.Create("/tmp/tree")
+	f, err := os.Create(out)
 	if err != nil {
 		panic(err)
 	}
